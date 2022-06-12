@@ -2,45 +2,49 @@ package main
 
 import (
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-
-	"gitee.com/zinface/go.qclipboard-server/models"
 )
 
-var r *gin.Engine
+type ClipBoard struct {
+	Data     string    `json:"data,omitempty"`
+	Mime     string    `json:"mime,omitempty"`
+	CreateAt time.Time `json:"create_at"`
+}
 
-var currentBoard = models.ClipBoard{}
-
-func init() {
-	r = gin.Default()
+//	去除 Data 字段以降低数据量，返回其余基本信息
+func stripData(c ClipBoard) ClipBoard {
+	c.Data = ""
+	return c
 }
 
 func main() {
+	var currentBoard ClipBoard
 
-	r.GET("/check", func(ctx *gin.Context) {
-		ctx.JSON(200, gin.H{
-			"createAt": currentBoard.CreateAt,
-		})
+	r := gin.Default()
+
+	//	GET /clipboard - 获取当前剪贴板
+	r.GET("/clipboard", func(c *gin.Context) {
+		c.JSON(http.StatusOK, currentBoard)
 	})
 
-	r.POST("/set", func(ctx *gin.Context) {
-
-		var cb = models.ClipBoard{}
-		var data = ctx.PostForm("data")
-		if strings.Compare(cb.BaseData, data) != 0 {
-			cb.BaseData = ctx.PostForm("data")
-			cb.MimeType = ctx.PostForm("mime")
-			cb.CreateAt = time.Now()
-			currentBoard = cb
+	//	POST /clipboard - 设置当前剪贴板
+	r.POST("/clipboard", func(c *gin.Context) {
+		var board ClipBoard
+		if err := c.BindJSON(&board); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
-		ctx.JSON(http.StatusOK, gin.H{})
+		currentBoard = board
+		currentBoard.CreateAt = time.Now()
+		//	返回剪贴板基本信息
+		c.JSON(http.StatusOK, stripData(currentBoard))
 	})
 
-	r.GET("/get", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, currentBoard)
+	//	GET /clipboard/info - 获取剪贴板基本信息
+	r.GET("/clipboard/info", func(c *gin.Context) {
+		c.JSON(http.StatusOK, stripData(currentBoard))
 	})
 
 	r.Run("0.0.0.0:9090")
