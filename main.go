@@ -36,8 +36,10 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		currentBoard = board
-		currentBoard.CreateAt = time.Now()
+		if board.Data != currentBoard.Data {
+			currentBoard = board
+			currentBoard.CreateAt = time.Now()
+		}
 		//	返回剪贴板基本信息
 		c.JSON(http.StatusOK, stripData(currentBoard))
 	})
